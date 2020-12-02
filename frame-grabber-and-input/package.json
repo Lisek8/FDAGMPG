@@ -1,0 +1,15 @@
+{
+  "name": "frame-grabber-and-input",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "start": "node main.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "node-ipc": "^9.1.3",
+    "puppeteer": "^5.5.0"
+  }
+}
