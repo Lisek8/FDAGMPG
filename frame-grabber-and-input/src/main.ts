@@ -1,16 +1,18 @@
 import puppeteer, { Browser, ElementHandle, Page } from 'puppeteer';
 import { Action } from './action';
 import { GameState } from './gameState';
+import readline from 'readline';
 
 const gameUrl = 'https://supermariobros.io/full-screen-mario/mario.html';
-const initialGamePages = 10;
+const initialGamePages = 1;
+let currentPage: Page;
 
 async function openBrowserAndCreatePages() {
   const browser = await puppeteer.launch({ headless: false, args: ['--mute-audio'] });
   const gamePages: Page[] = [];
   for (let i = 0; i < initialGamePages; i++) {
-    // gamePages.push(await createPageAndPrepareGame(browser));
-    createPageAndPrepareGame(browser, gamePages);
+    await createPageAndPrepareGame(browser, gamePages);
+    currentPage = gamePages[0];
   }
 }
 
@@ -33,7 +35,7 @@ async function getGameInfo(page: Page): Promise<GameState> {
     world: (await page.$eval('#data_display > td:nth-child(3)', element => element.innerHTML)).split('<br>')[1],
     time: parseInt((await page.$eval('#data_display > td:nth-child(4)', element => element.innerHTML)).split('<br>')[1]),
     lives: parseInt((await page.$eval('#data_display > td:nth-child(5)', element => element.innerHTML)).split('<br>')[1]),
-    image: gameCanvas != null ? await gameCanvas.screenshot({ path: 'example.png' }) : Buffer.from('')
+    image: gameCanvas != null ? await gameCanvas.screenshot({}) : Buffer.from('')
   }
   return gameState;
 }
@@ -42,7 +44,7 @@ async function gameControlIteration(page: Page) {
   const actionsToPerform: Action[] = getActions();
   await performActions(actionsToPerform);
   const gameState: GameState = await getGameInfo(page);
-  sendGameState(gameState);
+  // sendGameState(gameState);
 }
 
 function sendGameState(gameState: GameState) {
@@ -62,6 +64,19 @@ function acknowledgeReadiness(isReady: boolean) {
   // Not implemented
 }
 
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+
 (async () => {
-  await openBrowserAndCreatePages();
+  const browser = await puppeteer.launch({ headless: false, args: ['--mute-audio'] });
+  const gamePages: Page[] = [];
+  await createPageAndPrepareGame(browser, gamePages);
+  currentPage = gamePages[0];
+  const preparedData = JSON.stringify(await getGameInfo(currentPage));
+  console.log('FRAMEGRABBER:READY');
+  for await (const line of rl) {
+    console.log(preparedData)
+  }
 })();
