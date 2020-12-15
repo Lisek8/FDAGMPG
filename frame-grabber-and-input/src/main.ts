@@ -5,6 +5,13 @@ import readline from 'readline';
 
 const gameUrl = 'https://supermariobros.io/full-screen-mario/mario.html';
 const initialGamePages = 1;
+const keysPressed: any = {
+  w: false,
+  a: false,
+  s: false,
+  d: false,
+  shift: false
+};
 let currentPage: Page;
 
 async function openBrowserAndCreatePages() {
@@ -19,7 +26,7 @@ async function openBrowserAndCreatePages() {
 async function createPageAndPrepareGame(browser: Browser, gamePages: Page[]) {
   const page: Page = await browser.newPage();
   await page.goto(gameUrl);
-  const gameCanvas: ElementHandle<Element> | null = await page.$('body > canvas');
+  const gameCanvas = await page.$('body > canvas');
   if (gameCanvas != null) {
     await gameCanvas.click();
     await page.keyboard.press('p');
@@ -35,7 +42,7 @@ async function getGameInfo(page: Page): Promise<GameState> {
     world: (await page.$eval('#data_display > td:nth-child(3)', element => element.innerHTML)).split('<br>')[1],
     time: parseInt((await page.$eval('#data_display > td:nth-child(4)', element => element.innerHTML)).split('<br>')[1]),
     lives: parseInt((await page.$eval('#data_display > td:nth-child(5)', element => element.innerHTML)).split('<br>')[1]),
-    image: gameCanvas != null ? await gameCanvas.screenshot({}) : Buffer.from('')
+    image: gameCanvas != null ? await gameCanvas.screenshot({ type: 'jpeg', quality: 90 }) : Buffer.from('')
   }
   return gameState;
 }
@@ -74,9 +81,21 @@ const rl = readline.createInterface({
   const gamePages: Page[] = [];
   await createPageAndPrepareGame(browser, gamePages);
   currentPage = gamePages[0];
-  const preparedData = JSON.stringify(await getGameInfo(currentPage));
   console.log('FRAMEGRABBER:READY');
   for await (const line of rl) {
-    console.log(preparedData)
+    const keys: Array<string> = line.split('|');
+    keys.forEach(key => {
+      if (key === 'p' || key === 'ctrl') {
+        currentPage.keyboard.press(key);
+        return;
+      }
+      if (keysPressed[key]) {
+        currentPage.keyboard.up(key);
+      } else {
+        currentPage.keyboard.down(key);
+      }
+      keysPressed[key] = !keysPressed[key];
+    });
+    console.log(JSON.stringify(await getGameInfo(currentPage)))
   }
 })();
