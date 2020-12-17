@@ -42,7 +42,11 @@ async function getGameInfo(page: Page): Promise<GameState> {
     world: (await page.$eval('#data_display > td:nth-child(3)', element => element.innerHTML)).split('<br>')[1],
     time: parseInt((await page.$eval('#data_display > td:nth-child(4)', element => element.innerHTML)).split('<br>')[1]),
     lives: parseInt((await page.$eval('#data_display > td:nth-child(5)', element => element.innerHTML)).split('<br>')[1]),
-    image: gameCanvas != null ? await gameCanvas.screenshot({ type: 'jpeg', quality: 90 }) : Buffer.from('')
+    image: Buffer.from(await page.evaluate(() => {
+      const canvas: any = document.querySelector("canvas");
+      const canvasDataUrl: string = canvas.toDataURL();
+      return canvasDataUrl.substr(canvasDataUrl.indexOf(',') + 1);
+    }), 'base64')
   }
   return gameState;
 }
