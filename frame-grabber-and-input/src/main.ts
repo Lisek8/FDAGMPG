@@ -36,8 +36,9 @@ async function createPageAndPrepareGame(browser: Browser, gamePages: Page[]) {
 
 async function getGameInfo(page: Page): Promise<GameState> {
   const gameState = await page.evaluate(() => {
-    const worldInfoTableChildren = document.getElementById('data_display')!.children;
-    const canvas: HTMLCanvasElement | null = document.querySelector('canvas');
+    const gameBodyElement: HTMLElement | null = document.querySelector('body');
+    const worldInfoTableChildren: HTMLCollection = gameBodyElement!.children[1].children;
+    const canvas: HTMLCanvasElement = gameBodyElement!.children[0] as HTMLCanvasElement;
     const canvasDataUrl: string = canvas!.toDataURL();
     const gameState: GameState = {
       score: parseInt(worldInfoTableChildren![0].innerHTML.split('<br>')[1]),
