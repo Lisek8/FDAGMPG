@@ -35,19 +35,21 @@ async function createPageAndPrepareGame(browser: Browser, gamePages: Page[]) {
 }
 
 async function getGameInfo(page: Page): Promise<GameState> {
-  const gameCanvas: ElementHandle<Element> | null = await page.$('body > canvas');
-  const gameState: GameState = {
-    score: parseInt((await page.$eval('#data_display > td:nth-child(1)', element => element.innerHTML)).split('<br>')[1]),
-    coins: parseInt((await page.$eval('#data_display > td:nth-child(2)', element => element.innerHTML)).split('<br>')[1]),
-    world: (await page.$eval('#data_display > td:nth-child(3)', element => element.innerHTML)).split('<br>')[1],
-    time: parseInt((await page.$eval('#data_display > td:nth-child(4)', element => element.innerHTML)).split('<br>')[1]),
-    lives: parseInt((await page.$eval('#data_display > td:nth-child(5)', element => element.innerHTML)).split('<br>')[1]),
-    image: Buffer.from(await page.evaluate(() => {
-      const canvas: any = document.querySelector("canvas");
-      const canvasDataUrl: string = canvas.toDataURL();
-      return canvasDataUrl.substr(canvasDataUrl.indexOf(',') + 1);
-    }), 'base64')
-  }
+  const gameState = await page.evaluate(() => {
+    const worldInfoTableChildren = document.getElementById('data_display')!.children;
+    const canvas: HTMLCanvasElement | null = document.querySelector('canvas');
+    const canvasDataUrl: string = canvas!.toDataURL();
+    const gameState: GameState = {
+      score: parseInt(worldInfoTableChildren![0].innerHTML.split('<br>')[1]),
+      coins: parseInt(worldInfoTableChildren![1].innerHTML.split('<br>')[1]),
+      world: worldInfoTableChildren![2].innerHTML.split('<br>')[1],
+      time: parseInt(worldInfoTableChildren![3].innerHTML.split('<br>')[1]),
+      lives: parseInt(worldInfoTableChildren![4].innerHTML.split('<br>')[1]),
+      image: canvasDataUrl.substr(canvasDataUrl.indexOf(',') + 1)
+    }
+    return gameState;
+  });
+  gameState.image = Buffer.from(gameState.image as string, 'base64')
   return gameState;
 }
 
