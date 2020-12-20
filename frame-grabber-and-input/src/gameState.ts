@@ -4,5 +4,10 @@ export interface GameState {
   world: string;
   time: number;
   lives: number;
-  image?: Buffer | string;
+  image: Buffer | string;
+  errors?: {
+    control: false;
+    gameState: false;
+    pageCreation: false;
+  }
 }

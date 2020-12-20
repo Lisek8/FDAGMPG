@@ -1,10 +1,13 @@
-import puppeteer, { Browser, ElementHandle, Page } from 'puppeteer';
-import { Action } from './action';
+import puppeteer, { Browser, Page } from 'puppeteer';
 import { GameState } from './gameState';
 import readline from 'readline';
 
+const inputStream = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
 const gameUrl = 'https://supermariobros.io/full-screen-mario/mario.html';
-const initialGamePages = 1;
+const initialGamePages = 10;
 const keysPressed: any = {
   w: false,
   a: false,
@@ -12,97 +15,125 @@ const keysPressed: any = {
   d: false,
   shift: false
 };
+const errors: any = {
+  control: false,
+  pageCreation: false,
+  gameState: false
+};
+const gamePages: Page[] = [];
+let browser: Browser;
 let currentPage: Page;
-
-async function openBrowserAndCreatePages() {
-  const browser = await puppeteer.launch({ headless: false, args: ['--mute-audio'] });
-  const gamePages: Page[] = [];
-  for (let i = 0; i < initialGamePages; i++) {
-    await createPageAndPrepareGame(browser, gamePages);
-    currentPage = gamePages[0];
-  }
+let prevGameState: GameState = {
+  score: 0,
+  coins: 0,
+  world: '1-1',
+  time: 400,
+  lives: 3,
+  image: Buffer.from('')
 }
 
-async function createPageAndPrepareGame(browser: Browser, gamePages: Page[]) {
-  const page: Page = await browser.newPage();
-  await page.goto(gameUrl);
-  const gameCanvas = await page.$('body > canvas');
-  if (gameCanvas != null) {
-    await gameCanvas.click();
-    await page.keyboard.press('p');
+
+async function openBrowserAndCreatePages() {
+  browser = await puppeteer.launch({ headless: false, args: ['--mute-audio'] });
+  for (let i = 0; i < initialGamePages; i++) {
+    await createPageAndPrepareGame(browser, false);
   }
-  gamePages.push(page);
+  currentPage = gamePages[0];
+  await currentPage.bringToFront();
+}
+
+async function createPageAndPrepareGame(browser: Browser, focusOnCurrentPage: boolean) {
+  try {
+    const page: Page = await browser.newPage();
+    await page.goto(gameUrl);
+    const gameCanvas = await page.$('body > canvas');
+    if (gameCanvas != null) {
+      await gameCanvas.click();
+      await page.keyboard.press('p');
+    }
+    gamePages.push(page);
+    if (focusOnCurrentPage === true) {
+      await currentPage.bringToFront();
+    }
+  } catch (error) {
+    errors.pageCreation = true;
+  }
 }
 
 async function getGameInfo(page: Page): Promise<GameState> {
-  const gameState = await page.evaluate(() => {
-    const gameBodyElement: HTMLElement | null = document.querySelector('body');
-    const worldInfoTableChildren: HTMLCollection = gameBodyElement!.children[1].children;
-    const canvas: HTMLCanvasElement = gameBodyElement!.children[0] as HTMLCanvasElement;
-    const canvasDataUrl: string = canvas!.toDataURL();
-    const gameState: GameState = {
-      score: parseInt(worldInfoTableChildren![0].innerHTML.split('<br>')[1]),
-      coins: parseInt(worldInfoTableChildren![1].innerHTML.split('<br>')[1]),
-      world: worldInfoTableChildren![2].innerHTML.split('<br>')[1],
-      time: parseInt(worldInfoTableChildren![3].innerHTML.split('<br>')[1]),
-      lives: parseInt(worldInfoTableChildren![4].innerHTML.split('<br>')[1]),
-      image: canvasDataUrl.substr(canvasDataUrl.indexOf(',') + 1)
-    }
-    return gameState;
-  });
-  gameState.image = Buffer.from(gameState.image as string, 'base64')
+  let gameState = prevGameState;
+  try {
+    gameState = await page.evaluate(() => {
+      const gameBodyElement: HTMLElement | null = document.querySelector('body');
+      const worldInfoTableChildren: HTMLCollection = gameBodyElement!.children[1].children;
+      const canvas: HTMLCanvasElement = gameBodyElement!.children[0] as HTMLCanvasElement;
+      const canvasDataUrl: string = canvas!.toDataURL();
+      const gameState: GameState = {
+        score: parseInt(worldInfoTableChildren![0].innerHTML.split('<br>')[1]),
+        coins: parseInt(worldInfoTableChildren![1].innerHTML.split('<br>')[1]),
+        world: worldInfoTableChildren![2].innerHTML.split('<br>')[1],
+        time: parseInt(worldInfoTableChildren![3].innerHTML.split('<br>')[1]),
+        lives: parseInt(worldInfoTableChildren![4].innerHTML.split('<br>')[1]),
+        image: canvasDataUrl.substr(canvasDataUrl.indexOf(',') + 1)
+      }
+      return gameState;
+    });
+    gameState.image = Buffer.from(gameState.image as string, 'base64');
+  } catch (error) {
+    errors.gameState = true;
+  }
   return gameState;
 }
 
-async function gameControlIteration(page: Page) {
-  const actionsToPerform: Action[] = getActions();
-  await performActions(actionsToPerform);
-  const gameState: GameState = await getGameInfo(page);
-  // sendGameState(gameState);
-}
-
-function sendGameState(gameState: GameState) {
-  // Not implemented
-}
-
-function getActions(): Action[] {
-  // Not implemented
-  return [];
-}
-
-async function performActions(actions: Action[]) {
-  // Not implemented
-}
-
-function acknowledgeReadiness(isReady: boolean) {
-  // Not implemented
-}
-
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout
-});
-
-(async () => {
-  const browser = await puppeteer.launch({ headless: false, args: ['--mute-audio'] });
-  const gamePages: Page[] = [];
-  await createPageAndPrepareGame(browser, gamePages);
-  currentPage = gamePages[0];
-  console.log('FRAMEGRABBER:READY');
-  for await (const line of rl) {
-    const keys: Array<string> = line.split('|');
-    keys.forEach(key => {
-      if (key === 'p' || key === 'ctrl') {
-        currentPage.keyboard.press(key);
-        return;
-      }
-      if (keysPressed[key]) {
-        currentPage.keyboard.up(key);
-      } else {
-        currentPage.keyboard.down(key);
-      }
-      keysPressed[key] = !keysPressed[key];
-    });
-    console.log(JSON.stringify(await getGameInfo(currentPage)))
+async function gameControlIteration(inputLine: string) {
+  await performGameControl(inputLine);
+  let gameState = await getGameInfo(currentPage);
+  if (errors.gameState === false) {
+    prevGameState = gameState;
   }
-})();
+  gameState!.errors = errors;
+  console.log(JSON.stringify(gameState));
+  errors.control = false;
+  errors.gameState = false;
+  errors.pageCreation = false;
+}
+
+async function switchToNextGame() {
+  gamePages.shift();
+  currentPage = gamePages[0];
+  await createPageAndPrepareGame(browser, true);
+}
+
+async function performGameControl(inputLine: string) {
+  if (inputLine === 'NEXTGAME') {
+    await switchToNextGame();
+  } else {
+    const keys: Array<string> = inputLine.split('|');
+    await keys.forEach(async key => {
+      try {
+        if (key === 'p' || key === 'ctrl') {
+          await currentPage.keyboard.press(key);
+          return;
+        }
+        if (keysPressed[key]) {
+          await currentPage.keyboard.up(key);
+        } else {
+          await currentPage.keyboard.down(key);
+        }
+        keysPressed[key] = !keysPressed[key];
+      } catch (error) {
+        errors.control = true;
+      }
+    });
+  }
+}
+
+async function runFrameGrabber() {
+  await openBrowserAndCreatePages();
+  console.log('FRAMEGRABBER:READY');
+  for await (const line of inputStream) {
+    await gameControlIteration(line);
+  }
+}
+
+runFrameGrabber();
