@@ -99,6 +99,7 @@ async function gameControlIteration(inputLine: string) {
 }
 
 async function switchToNextGame() {
+  await currentPage.close();
   gamePages.shift();
   currentPage = gamePages[0];
   await createPageAndPrepareGame(browser, true);
