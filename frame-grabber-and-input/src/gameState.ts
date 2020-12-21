@@ -4,7 +4,7 @@ export interface GameState {
   world: string;
   time: number;
   lives: number;
-  image: Buffer | string;
+  image: string;
   errors?: {
     control: false;
     gameState: false;

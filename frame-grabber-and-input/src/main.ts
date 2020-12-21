@@ -29,28 +29,35 @@ let prevGameState: GameState = {
   world: '1-1',
   time: 400,
   lives: 3,
-  image: Buffer.from('')
+  image: ''
 }
 
 
 async function openBrowserAndCreatePages() {
-  browser = await puppeteer.launch({ headless: false, args: ['--mute-audio'] });
+  browser = await puppeteer.launch({ headless: true, args: [gameUrl, '--mute-audio']});
+  gamePages.push((await browser.pages())[0]);
+  currentPage = gamePages[0];
+  await currentPage.waitForSelector('body > canvas');
+  await prepareGameWindow(currentPage);
   for (let i = 0; i < initialGamePages; i++) {
     await createPageAndPrepareGame(browser, false);
   }
-  currentPage = gamePages[0];
   await currentPage.bringToFront();
+}
+
+async function prepareGameWindow(page: Page) {
+  const gameCanvas = await page.$('body > canvas');
+    if (gameCanvas != null) {
+      await gameCanvas.click();
+      await page.keyboard.press('p');
+    }
 }
 
 async function createPageAndPrepareGame(browser: Browser, focusOnCurrentPage: boolean) {
   try {
     const page: Page = await browser.newPage();
     await page.goto(gameUrl);
-    const gameCanvas = await page.$('body > canvas');
-    if (gameCanvas != null) {
-      await gameCanvas.click();
-      await page.keyboard.press('p');
-    }
+    await prepareGameWindow(page);
     gamePages.push(page);
     if (focusOnCurrentPage === true) {
       await currentPage.bringToFront();
@@ -78,7 +85,6 @@ async function getGameInfo(page: Page): Promise<GameState> {
       }
       return gameState;
     });
-    gameState.image = Buffer.from(gameState.image as string, 'base64');
   } catch (error) {
     errors.gameState = true;
   }
@@ -87,6 +93,10 @@ async function getGameInfo(page: Page): Promise<GameState> {
 
 async function gameControlIteration(inputLine: string) {
   await performGameControl(inputLine);
+  if (inputLine === 'NEXTGAME') {
+    console.log('FRAMEGRABBER:READY');
+    return;
+  }
   let gameState = await getGameInfo(currentPage);
   if (errors.gameState === false) {
     prevGameState = gameState;
@@ -99,7 +109,9 @@ async function gameControlIteration(inputLine: string) {
 }
 
 async function switchToNextGame() {
-  await currentPage.close();
+  if (currentPage != null) {
+    await currentPage.close();
+  }
   gamePages.shift();
   currentPage = gamePages[0];
   await createPageAndPrepareGame(browser, true);
