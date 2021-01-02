@@ -1,2 +1,5 @@
 .vscode
 .venv
+checkpoint
+dqn_weights.h5f*
+**/__pycache__

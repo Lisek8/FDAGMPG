@@ -4,6 +4,17 @@
 import gym
 import numpy as np
 import keras
+import random
+from keras import backend as K
+
+# Create a breakout environment
+env = gym.make('BreakoutDeterministic-v4')
+# Reset it, returns the starting frame
+frame = env.reset()
+# Render
+env.render()
+
+# Preprocessing
 
 def to_grayscale(img):
   return np.mean(img, axis=2).astype(np.uint8)
@@ -17,12 +28,42 @@ def preprocess(img):
 def transform_reward(reward):
   return np.sign(reward)
 
-def fit_batch(model, target_model, gamma, start_states, actions, rewards, next_states, is_terminal):
+# ===========================================================
+
+# The Model
+
+# def fit_batch(model, target_model, gamma, start_states, actions, rewards, next_states, is_terminal):
+#   """Do one deep Q learning iteration.
+  
+#   Params:
+#   - model: The DQN
+#   - target_model: The target DQN
+#   - gamma: Discount factor (should be 0.99)
+#   - start_states: numpy array of starting states
+#   - actions: numpy array of one-hot encoded actions corresponding to the start states
+#   - rewards: numpy array of rewards corresponding to the start states and actions
+#   - next_states: numpy array of the resulting states corresponding to the start states and actions
+#   - is_terminal: numpy boolean array of whether the resulting state is terminal
+  
+#   """
+#   # First, predict the Q values of the next states. Note how we are passing ones as the mask.
+#   next_Q_values = target_model.predict([next_states, np.ones(actions.shape)])
+#   # The Q values of the terminal states is 0 by definition, so override them
+#   next_Q_values[is_terminal] = 0
+#   # The Q values of each start state is the reward + gamma * the max next state Q value
+#   Q_values = rewards + gamma * np.max(next_Q_values, axis=1)
+#   # Fit the keras model. Note how we are passing the actions as the mask and multiplying
+#   # the targets by the actions.
+#   model.fit(
+#       [start_states, actions], actions * Q_values[:, None],
+#       nb_epoch=1, batch_size=len(start_states), verbose=0
+#   )
+
+def fit_batch(model, gamma, start_states, actions, rewards, next_states, is_terminal):
   """Do one deep Q learning iteration.
   
   Params:
   - model: The DQN
-  - target_model: The target DQN
   - gamma: Discount factor (should be 0.99)
   - start_states: numpy array of starting states
   - actions: numpy array of one-hot encoded actions corresponding to the start states
@@ -32,7 +73,7 @@ def fit_batch(model, target_model, gamma, start_states, actions, rewards, next_s
   
   """
   # First, predict the Q values of the next states. Note how we are passing ones as the mask.
-  next_Q_values = target_model.predict([next_states, np.ones(actions.shape)])
+  next_Q_values = model.predict([next_states, np.ones(actions.shape)])
   # The Q values of the terminal states is 0 by definition, so override them
   next_Q_values[is_terminal] = 0
   # The Q values of each start state is the reward + gamma * the max next state Q value
@@ -44,37 +85,57 @@ def fit_batch(model, target_model, gamma, start_states, actions, rewards, next_s
       nb_epoch=1, batch_size=len(start_states), verbose=0
   )
 
+# ===========================================================
+
+# Model Definition
+
 def atari_model(n_actions):
   # We assume a theano backend here, so the "channels" are first.
   ATARI_SHAPE = (4, 105, 80)
 
   # With the functional API we need to define the inputs.
   frames_input = keras.layers.Input(ATARI_SHAPE, name='frames')
-  actions_input = keras.layers.Input((self.n_actions,), name='filter')
+  actions_input = keras.layers.Input((n_actions,), name='mask')
 
-  conv_1 = keras.layers.convolutional.Convolution2D(2, 8, 8, subsample=(4, 4), activation='relu')(keras.layers.Lambda(lambda x: x / 255.0)(frames_input))
-  conv_2 = keras.layers.convolutional.Convolution2D(64, 4, 4, subsample=(2, 2), activation='relu' )(conv_1)
-  conv_3 = keras.layers.convolutional.Convolution2D(64, 3, 3, subsample=(1, 1), activation='relu')(conv_2)
-  conv_flattened = keras.layers.core.Flatten()(conv_3)
-  hidden = keras.layers.Dense(512, activation='relu')(conv_flattened)
-  output = keras.layers.Dense(self.n_actions)(hidden)
+  # Assuming that the input frames are still encoded from 0 to 255. Transforming to [0, 1].
+  normalized = keras.layers.Lambda(lambda x: x / 255.0)(frames_input)
+  
+  # "The first hidden layer convolves 16 8×8 filters with stride 4 with the input image and applies a rectifier nonlinearity."
+  conv_1 = keras.layers.convolutional.Convolution2D(
+      16, 8, 8, subsample=(4, 4), activation='relu'
+  )(normalized)
+  # "The second hidden layer convolves 32 4×4 filters with stride 2, again followed by a rectifier nonlinearity."
+  conv_2 = keras.layers.convolutional.Convolution2D(
+      32, 4, 4, subsample=(2, 2), activation='relu'
+  )(conv_1)
+  # Flattening the second convolutional layer.
+  conv_flattened = keras.layers.core.Flatten()(conv_2)
+  # "The final hidden layer is fully-connected and consists of 256 rectifier units."
+  hidden = keras.layers.Dense(256, activation='relu')(conv_flattened)
+  # "The output layer is a fully-connected linear layer with a single output for each valid action."
+  output = keras.layers.Dense(n_actions)(hidden)
+  # Finally, we multiply the output by the mask!
   filtered_output = keras.layers.merge([output, actions_input], mode='mul')
 
-  self.model = keras.models.Model(input=[frames_input, actions_input], output=filtered_output)
+  model = keras.models.Model(input=[frames_input, actions_input], output=filtered_output)
   optimizer = optimizer=keras.optimizers.RMSprop(lr=0.00025, rho=0.95, epsilon=0.01)
-  self.model.compile(optimizer, loss=huber_loss)
+  model.compile(optimizer, loss='mse')
+  return model
 
-from keras import backend as K
-# Note: pass in_keras=False to use this function with raw numbers of numpy arrays for testing
-def huber_loss(a, b, in_keras=True):
-  error = a - b
-  quadratic_term = error*error / 2
-  linear_term = abs(error) - 1/2
-  use_linear_term = (abs(error) > 1.0)
-  if in_keras:
-      # Keras won't let us multiply floats by booleans, so we explicitly cast the booleans to floats
-      use_linear_term = K.cast(use_linear_term, 'float32')
-  return use_linear_term * linear_term + (1-use_linear_term) * quadratic_term
+# ===========================================================
+
+# # Note: pass in_keras=False to use this function with raw numbers of numpy arrays for testing
+# def huber_loss(a, b, in_keras=True):
+#   error = a - b
+#   quadratic_term = error*error / 2
+#   linear_term = abs(error) - 1/2
+#   use_linear_term = (abs(error) > 1.0)
+#   if in_keras:
+#       # Keras won't let us multiply floats by booleans, so we explicitly cast the booleans to floats
+#       use_linear_term = K.cast(use_linear_term, 'float32')
+#   return use_linear_term * linear_term + (1-use_linear_term) * quadratic_term
+
+# Experience Replay
 
 class RingBuf:
   def __init__(self, size):
@@ -107,6 +168,8 @@ class RingBuf:
     for i in range(len(self)):
         yield self[i]
 
+# ===========================================================
+
 def q_iteration(env, model, state, iteration, memory):
   # Choose epsilon based on the iteration
   epsilon = get_epsilon_for_iteration(iteration)
@@ -125,17 +188,22 @@ def q_iteration(env, model, state, iteration, memory):
   batch = memory.sample_batch(32)
   fit_batch(model, batch)
 
-def copy_model(model):
-  """Returns a copy of a keras model."""
-  model.save('tmp_model')
-  return keras.models.load_model('tmp_model')
+# def copy_model(model):
+#   """Returns a copy of a keras model."""
+#   model.save('tmp_model')
+#   return keras.models.load_model('tmp_model')
 
-# Create a breakout environment
-env = gym.make('BreakoutDeterministic-v4')
-# Reset it, returns the starting frame
-frame = env.reset()
-# Render
-env.render()
+def get_epsilon_for_iteration(iteration):
+  if (iteration > 1000000):
+    return 0.1
+  return 1.0 - ((1.0 - 0.1) * (iteration / 1000000))
+
+def choose_best_action(model, state):
+  next_Q_values = model.predict([env.observation_space.shape[0], np.ones(env.actions.shape)])
+  # The Q values of the terminal states is 0 by definition, so override them
+  next_Q_values[is_terminal] = 0
+  # The Q values of each start state is the reward + gamma * the max next state Q value
+  Q_values = rewards + gamma * np.max(next_Q_values, axis=1)
 
 is_done = False
 while not is_done:
