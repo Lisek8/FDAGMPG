@@ -7,6 +7,7 @@ import numpy as np
 from PIL import Image
 import json
 from typing import Any, Tuple
+from .preprocessing import Preprocessing
 
 class Environment:
   def __init__(self, visualize: bool = False):
@@ -69,7 +70,7 @@ class Environment:
       # Process game image
       gameImage: bytes = base64.b64decode((gameInfoJson['image']))
       processedImage = cv2.cvtColor(np.array(Image.open(io.BytesIO(gameImage))), cv2.COLOR_BGR2RGB)
-      gameInfoJson['image'] = processedImage
+      gameInfoJson['image'] = Preprocessing.downsample(Preprocessing.toGrayscale(processedImage))
       # Display current game state
       if (self.visualize == True):
         cv2.imshow('Game preview', processedImage)
