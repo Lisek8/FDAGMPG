@@ -1,4 +1,4 @@
-# SRC: https://keras.io/examples/rl/deep_q_network_breakout
+# BASE: https://keras.io/examples/rl/deep_q_network_breakout
 
 import numpy as np
 import tensorflow as tf
@@ -22,7 +22,7 @@ else:
     print("No GPU found")
 
 # Configuration paramaters for the whole setup
-gamma = 0.99  # Discount factor for past rewards
+discountFactor = 0.99  # Discount factor for past rewards
 epsilon = 1.0  # Epsilon greedy parameter
 epsilon_min = 0.1  # Minimum epsilon greedy parameter
 epsilon_max = 1.0  # Maximum epsilon greedy parameter
@@ -30,7 +30,6 @@ epsilon_interval = (
     epsilon_max - epsilon_min
 )  # Rate at which to reduce chance of random action being taken
 batch_size = 32  # Size of batch taken from replay buffer
-max_steps_per_episode = 10000
 
 # Create Mario environment with visualization
 env = Environment(True)
@@ -94,7 +93,7 @@ loss_function = keras.losses.Huber()
 while True:  # Run until solved
     state = env.reset()
     episode_reward = 0
-    for timestep in range(1, max_steps_per_episode):
+    while True:
         frame_count += 1
 
         # Use epsilon-greedy for exploration
@@ -147,7 +146,7 @@ while True:  # Run until solved
             # Use the target model for stability
             future_rewards = model_target.predict(state_next_sample)
             # Q value = reward + discount factor * expected future reward
-            updated_q_values = rewards_sample + gamma * tf.reduce_max(
+            updated_q_values = rewards_sample + discountFactor * tf.reduce_max(
                 future_rewards, axis=1
             )
 
