@@ -31,37 +31,6 @@ epsilon_interval = (
 )  # Rate at which to reduce chance of random action being taken
 batch_size = 32  # Size of batch taken from replay buffer
 
-# Create Mario environment with visualization
-env = Environment(True)
-env.open()
-num_actions = len(env.actions)
-
-def createQModel():
-    # Network defined by the Deepmind paper
-    inputs = layers.Input(shape=(300, 300, 4,))
-
-    # Convolutions on the frames on the screen
-    layer1 = layers.Conv2D(32, 8, strides=4, activation="relu")(inputs)
-    layer2 = layers.Conv2D(64, 4, strides=2, activation="relu")(layer1)
-    layer3 = layers.Conv2D(64, 3, strides=1, activation="relu")(layer2)
-
-    layer4 = layers.Flatten()(layer3)
-
-    layer5 = layers.Dense(512, activation="relu")(layer4)
-    action = layers.Dense(num_actions, activation="linear")(layer5)
-
-    return keras.Model(inputs=inputs, outputs=action)
-
-
-# The first model makes the predictions for Q-values which are used to
-# make a action.
-model = createQModel()
-# Build a target model for the prediction of future rewards.
-# The weights of a target model get updated every 10000 steps thus when the
-# loss between the Q-values is calculated the target Q-value is stable.
-model_target = createQModel()
-
-
 # In the Deepmind paper they use RMSProp however then Adam optimizer
 # improves training time
 optimizer = keras.optimizers.Adam(learning_rate=0.00025, clipnorm=1.0)
@@ -89,6 +58,60 @@ update_after_actions = 4
 update_target_network = 10000
 # Using huber loss for stability
 loss_function = keras.losses.Huber()
+
+# Backup settings
+save_weights_episode_interval = 10
+backup_folder_path = "weights"
+backup_name_scheme = "weightsE{}.h5f"
+
+def saveWeights(model: keras.Model, episode: int):
+    try:
+        path = os.path.join(backup_folder_path, str(episode))
+        if not os.path.exists(path):
+            os.makedirs(path)
+        model.save_weights(os.path.join(path, backup_name_scheme.format(episode)))
+    except:
+        print("Failed to save weights for episode {}".format(episode))
+
+def loadWeights(model: keras.Model, episode: int):
+    path = os.path.join(backup_folder_path, str(episode))
+    if os.path.exists(path):
+        model.load_weights(os.path.join(path, backup_name_scheme.format(episode)))
+
+def createQModel():
+    # Network defined by the Deepmind paper
+    inputs = layers.Input(shape=(300, 300, 4,))
+
+    # Convolutions on the frames on the screen
+    layer1 = layers.Conv2D(32, 8, strides=4, activation="relu")(inputs)
+    layer2 = layers.Conv2D(64, 4, strides=2, activation="relu")(layer1)
+    layer3 = layers.Conv2D(64, 3, strides=1, activation="relu")(layer2)
+
+    layer4 = layers.Flatten()(layer3)
+
+    layer5 = layers.Dense(512, activation="relu")(layer4)
+    action = layers.Dense(num_actions, activation="linear")(layer5)
+
+    return keras.Model(inputs=inputs, outputs=action)
+
+# Create Mario environment with visualization
+env = Environment(True)
+env.open()
+num_actions = len(env.actions)
+
+# The first model makes the predictions for Q-values which are used to
+# make a action.
+model = createQModel()
+# Build a target model for the prediction of future rewards.
+# The weights of a target model get updated every 10000 steps thus when the
+# loss between the Q-values is calculated the target Q-value is stable.
+model_target = createQModel()
+
+# Restore weights from backup
+# episode_count = 10
+# loadWeights(model, episode_count)
+# loadWeights(model_target, episode_count)
+# episode_count += 1
 
 while True:  # Run until solved
     state = env.reset()
@@ -192,6 +215,9 @@ while True:  # Run until solved
     if len(episode_reward_history) > 100:
         del episode_reward_history[:1]
     running_reward = np.sum(episode_reward_history)
+
+    if episode_count % save_weights_episode_interval == 0:
+        saveWeights(model, episode_count)
 
     episode_count += 1
 

@@ -3,3 +3,4 @@
 checkpoint
 dqn_weights.h5f*
 **/__pycache__
+weights
