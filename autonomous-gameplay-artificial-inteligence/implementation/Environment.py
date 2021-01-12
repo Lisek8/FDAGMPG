@@ -13,7 +13,6 @@ from .preprocessing import Preprocessing
 class Environment:
   def __init__(self, visualize: bool = False):
     self.gameTime: int = -1
-    self.lastTimeSwap: int = 0
     self.frameStack = 4
     self.nextGame: bool = False
     self.gameReady: bool = False
@@ -39,7 +38,6 @@ class Environment:
     self.process.stdin.flush()
     self.nextGame = False
     self.gameTime = -1
-    self.lastTimeSwap = 0
     self.__prepareGameWindow()
     _, gameInfo = self.step('')
     self.__frames = np.empty([300, 300, self.frameStack])
@@ -66,15 +64,9 @@ class Environment:
         gameInfoJson = json.loads(dataToBePassedToAI)
         # Update game time if it changed
         if (self.gameTime != gameInfoJson['time']):
-          self.lastTimeSwap = time.perf_counter()
           self.gameTime = gameInfoJson['time']
-        else:
-          # If gameTime was uninitialized, initialize it
-          if (self.gameTime == -1):
-            self.lastTimeSwap = time.perf_counter()
-          # In case when game time didn't change for half a second, end the game
-          elif ((time.perf_counter() - self.lastTimeSwap) > 0.5):
-            self.nextGame = True
+        if (gameInfoJson['world'] != '1-1' or gameInfoJson['lives'] != 3):
+          self.nextGame = True
         # Process game image
         gameImage: bytes = base64.b64decode((gameInfoJson['image']))
         processedImage = cv2.cvtColor(np.array(Image.open(io.BytesIO(gameImage))), cv2.COLOR_BGR2RGB)

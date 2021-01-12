@@ -35,7 +35,7 @@ let prevGameState: GameState = {
 }
 
 async function openBrowserAndCreatePages() {
-  browser = await puppeteer.launch({ headless: false, args: [gameUrl, '--mute-audio'], defaultViewport: { width: 600, height: 600 } });
+  browser = await puppeteer.launch({ headless: true, args: [gameUrl, '--mute-audio'], defaultViewport: { width: 600, height: 600 } });
   gamePages.push((await browser.pages())[0]);
   currentPage = gamePages[0];
   await currentPage.waitForSelector('body > canvas');

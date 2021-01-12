@@ -18,7 +18,7 @@ def waitForNewGameToBePrepared():
     while True:
         frameGrabberInfo = process.stdout.readline().strip()
         if (frameGrabberInfo != b'' and frameGrabberInfo.decode() == 'FRAMEGRABBER:READY'):
-            process.stdin.write(("p|").encode())
+            process.stdin.write(("p").encode())
             break
         time.sleep(1)
     gameTime = -1
