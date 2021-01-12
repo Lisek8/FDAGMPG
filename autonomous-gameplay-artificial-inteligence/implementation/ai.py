@@ -95,7 +95,7 @@ def createQModel():
     return keras.Model(inputs=inputs, outputs=action)
 
 # Create Mario environment with visualization
-env = Environment(True)
+env = Environment(True, update_after_actions)
 env.open()
 num_actions = len(env.actions)
 

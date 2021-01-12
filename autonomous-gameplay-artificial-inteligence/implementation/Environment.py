@@ -11,9 +11,9 @@ from typing import Any, Tuple
 from .preprocessing import Preprocessing
 
 class Environment:
-  def __init__(self, visualize: bool = False):
+  def __init__(self, visualize: bool = False, frameStack = 4):
     self.gameTime: int = -1
-    self.frameStack = 4
+    self.frameStack = frameStack
     self.nextGame: bool = False
     self.gameReady: bool = False
     self.visualize: bool = visualize
@@ -54,6 +54,7 @@ class Environment:
       iterationStart: float = time.time()
       # Pass input to frame grabber
       self.process.stdin.write((inputString + "\n").encode())
+      inputString = ""
       self.process.stdin.flush()
       # Get output from process
       frameGrabberInfo: bytes = self.process.stdout.readline().strip()
