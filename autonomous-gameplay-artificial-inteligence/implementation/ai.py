@@ -67,6 +67,16 @@ update_target_network = 10000
 # Using huber loss for stability
 loss_function = keras.losses.Huber()
 
+# Reward settings
+coin_weight = 200
+penalty_per_time_unit = 0
+# Starting time value for game DO NOT MODIFY
+game_time_limit = 400
+# Initial weighted random choice probability
+# Environment.py: self.actions = ['w', 'a', 'd', 'w|a', 'w|d', 'w|a|shift', 'w|d|shift', 'w|shift', 'd|shift', 'a|shift']
+# Order and quantity must match actions for environemnt
+weighted_probability = [0.075, 0.025, 0.3, 0.025, 0.075, 0.025, 0.075, 0.075, 0.3, 0.025]
+
 # Backup settings
 save_weights_episode_interval = 10
 backup_folder_path = "weights"
@@ -98,7 +108,7 @@ def createQModel():
     layer4 = layers.Flatten()(layer3)
 
     layer5 = layers.Dense(512, activation="relu")(layer4)
-    action = layers.Dense(num_actions, activation="linear")(layer5)
+    action = layers.Dense(num_actions, activation="softmax")(layer5)
 
     return keras.Model(inputs=inputs, outputs=action)
 
@@ -124,13 +134,15 @@ model_target = createQModel()
 while True:  # Run until solved
     state = env.reset()
     episode_reward = 0
+    coins = 0
+    game_time = game_time_limit
     while True:
         frame_count += 1
 
         # Use epsilon-greedy for exploration
         if frame_count < epsilon_random_frames or epsilon > np.random.rand(1)[0]:
             # Take random action
-            action = np.random.choice(num_actions)
+            action = np.random.choice(num_actions, p=weighted_probability)
         else:
             # Predict action Q-values
             # From environment state
@@ -153,10 +165,11 @@ while True:  # Run until solved
         state_history.append(state)
         state_next_history.append(state_next)
         done_history.append(done)
-        rewards_history.append(current_state['score'] - episode_reward)
+        rewards_history.append((current_state['score'] - episode_reward) + ((current_state['coins'] - coins) * coin_weight) - ((game_time - current_state['time']) * penalty_per_time_unit))
         state = state_next
+        coins = current_state['coins']
 
-        episode_reward = current_state['score']
+        episode_reward = current_state['score'] + (current_state['coins'] * coin_weight) - ((game_time_limit - current_state['time']) * penalty_per_time_unit)
 
         # Update every 4th action and once batch size is over 32
         if frame_count % update_after_actions == 0 and len(done_history) > batch_size:
@@ -229,6 +242,6 @@ while True:  # Run until solved
 
     episode_count += 1
 
-    if running_reward > 10000:  # Condition to consider the task solved
+    if running_reward > 500000:  # Condition to consider the task solved
         print("Solved at episode {}!".format(episode_count))
         break
