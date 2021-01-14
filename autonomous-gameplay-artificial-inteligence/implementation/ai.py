@@ -50,8 +50,9 @@ epsilon_random_frames = 50000
 # Number of frames for exploration
 epsilon_greedy_frames = 1000000.0
 # Maximum replay length
-# Note: The Deepmind paper suggests 1000000 however this causes memory issues
-max_memory_length = 100000
+# Experience replay objects size in bytes: 1000332
+# 10000 ~ 10GB
+max_memory_length = 10000
 # Train the model after 4 actions
 update_after_actions = 4
 # How often to update the target network
@@ -80,7 +81,7 @@ def loadWeights(model: keras.Model, episode: int):
 
 def createQModel():
     # Network defined by the Deepmind paper
-    inputs = layers.Input(shape=(300, 300, 4,))
+    inputs = layers.Input(shape=(125, 125, 4,))
 
     # Convolutions on the frames on the screen
     layer1 = layers.Conv2D(32, 8, strides=4, activation="relu")(inputs)

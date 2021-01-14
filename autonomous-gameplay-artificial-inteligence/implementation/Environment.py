@@ -60,7 +60,7 @@ class Environment:
     self.gameTime = -1
     self.__prepareGameWindow()
     _, gameInfo = self.step('')
-    self.__frames = np.empty([300, 300, self.frameStack])
+    self.__frames = np.empty([125, 125, self.frameStack])
     self.__frames[:,:] = np.array(gameInfo['image'])
     return self.__frames
 
@@ -68,7 +68,7 @@ class Environment:
     assert self.gameReady, "Environment must be open before step call"
     assert not self.nextGame, "Cannot perform a step in game that is done, use reset() to prepare next game"
 
-    frameStackArray = np.empty([300, 300, self.frameStack])
+    frameStackArray = np.empty([125, 125, self.frameStack])
     stepGameInfo = None
     for i in range(0, self.frameStack):
       iterationStart: float = time.time()
@@ -91,7 +91,7 @@ class Environment:
         # Process game image
         gameImage: bytes = base64.b64decode((gameInfoJson['image']))
         processedImage = cv2.cvtColor(np.array(Image.open(io.BytesIO(gameImage))), cv2.COLOR_BGR2RGB)
-        gameInfoJson['image'] = Preprocessing.downsample(Preprocessing.toGrayscale(processedImage))
+        gameInfoJson['image'] = Preprocessing.downsample(Preprocessing.toGrayscale(processedImage), 4)
         # Display current game state
         if (self.visualize == True):
           cv2.imshow('Game preview', processedImage)
