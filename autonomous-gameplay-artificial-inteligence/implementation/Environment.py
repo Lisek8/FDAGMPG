@@ -1,4 +1,3 @@
-from collections import deque
 import time
 from subprocess import Popen, PIPE
 import io
@@ -11,9 +10,10 @@ from typing import Any, Tuple
 from .preprocessing import Preprocessing
 
 class Environment:
-  def __init__(self, visualize: bool = False, frameStack = 4):
+  def __init__(self, gameWidth, gameHeight, visualize: bool = False, downsampleFactor = 4, frameStack = 4):
     self.gameTime: int = -1
     self.frameStack = frameStack
+    self.downsampleFactor = downsampleFactor
     self.nextGame: bool = False
     self.gameReady: bool = False
     self.visualize: bool = visualize
@@ -25,9 +25,11 @@ class Environment:
       "d": False,
       "shift": False
     }
+    self.gameWidth = gameWidth
+    self.gameHeight = gameHeight
 
   def open(self):
-    self.process = Popen("node ../frame-grabber-and-input/dist/main.js", stdin=PIPE, stdout=PIPE)
+    self.process = Popen("node ../frame-grabber-and-input/dist/main.js width={} height={}".format(self.gameWidth, self.gameHeight), stdin=PIPE, stdout=PIPE)
     self.gameReady = True
   
   def __prepareGameWindow(self):
@@ -56,11 +58,12 @@ class Environment:
     assert self.gameReady, "Environment must be open before step call"
     self.process.stdin.write(("NEXTGAME\n").encode())
     self.process.stdin.flush()
-    self.nextGame = False
     self.gameTime = -1
     self.__prepareGameWindow()
+    self.nextGame = False
     _, gameInfo = self.step('')
-    self.__frames = np.empty([125, 125, self.frameStack])
+    self.nextGame = False
+    self.__frames = np.empty([int(self.gameHeight / self.downsampleFactor), int(self.gameWidth / self.downsampleFactor), self.frameStack])
     self.__frames[:,:] = np.array(gameInfo['image'])
     return self.__frames
 
@@ -68,7 +71,7 @@ class Environment:
     assert self.gameReady, "Environment must be open before step call"
     assert not self.nextGame, "Cannot perform a step in game that is done, use reset() to prepare next game"
 
-    frameStackArray = np.empty([125, 125, self.frameStack])
+    frameStackArray = np.empty([int(self.gameHeight / self.downsampleFactor), int(self.gameWidth / self.downsampleFactor), self.frameStack])
     stepGameInfo = None
     for i in range(0, self.frameStack):
       iterationStart: float = time.time()
@@ -91,7 +94,7 @@ class Environment:
         # Process game image
         gameImage: bytes = base64.b64decode((gameInfoJson['image']))
         processedImage = cv2.cvtColor(np.array(Image.open(io.BytesIO(gameImage))), cv2.COLOR_BGR2RGB)
-        gameInfoJson['image'] = Preprocessing.downsample(Preprocessing.toGrayscale(processedImage), 4)
+        gameInfoJson['image'] = Preprocessing.downsample(Preprocessing.toGrayscale(processedImage), self.downsampleFactor)
         # Display current game state
         if (self.visualize == True):
           cv2.imshow('Game preview', processedImage)

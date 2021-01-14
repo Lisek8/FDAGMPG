@@ -53,8 +53,15 @@ epsilon_greedy_frames = 1000000.0
 # Experience replay objects size in bytes: 1000332
 # 10000 ~ 10GB
 max_memory_length = 10000
-# Train the model after 4 actions
+# Train the model every 4th action
 update_after_actions = 4
+# Environemnt downsample factor
+downsample_factor = 4
+# Frame stack size
+frame_stack_size = 4
+# Game window size
+game_window_width = 600
+game_window_height = 432
 # How often to update the target network
 update_target_network = 10000
 # Using huber loss for stability
@@ -81,7 +88,7 @@ def loadWeights(model: keras.Model, episode: int):
 
 def createQModel():
     # Network defined by the Deepmind paper
-    inputs = layers.Input(shape=(125, 125, 4,))
+    inputs = layers.Input(shape=(int(game_window_height / downsample_factor), int(game_window_width / downsample_factor), frame_stack_size,))
 
     # Convolutions on the frames on the screen
     layer1 = layers.Conv2D(32, 8, strides=4, activation="relu")(inputs)
@@ -96,7 +103,7 @@ def createQModel():
     return keras.Model(inputs=inputs, outputs=action)
 
 # Create Mario environment with visualization
-env = Environment(True, update_after_actions)
+env = Environment(game_window_width, game_window_height, True, downsample_factor, frame_stack_size)
 env.open()
 num_actions = len(env.actions)
 
@@ -151,7 +158,7 @@ while True:  # Run until solved
 
         episode_reward = current_state['score']
 
-        # Update every fourth frame and once batch size is over 32
+        # Update every 4th action and once batch size is over 32
         if frame_count % update_after_actions == 0 and len(done_history) > batch_size:
 
             # Get indices of samples for replay buffers

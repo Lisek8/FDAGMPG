@@ -32,10 +32,29 @@ let prevGameState: GameState = {
   time: 400,
   lives: 3,
   image: ''
+};
+let gameSize = {
+  width: 600, // Minimum require width (>= 600)
+  height: 432 // Minimum required height (>= 431)
+};
+
+if (process.argv.length < 4) {
+  console.log('Invalid number of arguments, please pass width and height of game window as program arguments in format \'width=<number> height=<number>\'');
+  process.exit(1);
+}
+
+try {
+  gameSize = {
+    width: parseInt(process.argv[2].split('=')[1]),
+    height: parseInt(process.argv[3].split('=')[1])
+  };
+} catch (error) {
+  console.log('Failed to parse command line arguments, please make sure arguments are in format \'width=<number> height=<number>\'');
+  process.exit(2);
 }
 
 async function openBrowserAndCreatePages() {
-  browser = await puppeteer.launch({ headless: true, args: [gameUrl, '--mute-audio'], defaultViewport: { width: 500, height: 500 } });
+  browser = await puppeteer.launch({ headless: true, args: [gameUrl, '--mute-audio'], defaultViewport: gameSize });
   gamePages.push((await browser.pages())[0]);
   currentPage = gamePages[0];
   await currentPage.waitForSelector('body > canvas');
