@@ -7,7 +7,7 @@ import numpy as np
 from PIL import Image
 import json
 from typing import Any, Tuple
-from .preprocessing import Preprocessing
+from preprocessing import Preprocessing
 
 class Environment:
   def __init__(self, gameWidth, gameHeight, visualize: bool = False, downsampleFactor = 4, frameStack = 4):
