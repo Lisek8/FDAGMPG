@@ -39,19 +39,6 @@ class Environment:
         self.process.stdin.write(("p").encode())
         break
       time.sleep(1)
-  
-  def __processInputString(self, inputString: str, separator: str = "|") -> str:
-    outputStringKeys = []
-    buttonsList = inputString.split(separator)
-    for key in self.buttonsPressed:
-      if (key in buttonsList):
-        if (self.buttonsPressed[key] == False):
-          outputStringKeys.append(key)
-          self.buttonsPressed[key] = True
-      elif (self.buttonsPressed[key] == True):
-          outputStringKeys.append(key)
-          self.buttonsPressed[key] = False
-    return separator.join(outputStringKeys)
 
 
   def reset(self):
@@ -76,7 +63,7 @@ class Environment:
     for i in range(0, self.frameStack):
       iterationStart: float = time.time()
       # Pass input to frame grabber
-      self.process.stdin.write((self.__processInputString(inputString) + "\n").encode())
+      self.process.stdin.write((inputString + "\n").encode())
       inputString = ""
       self.process.stdin.flush()
       # Get output from process
