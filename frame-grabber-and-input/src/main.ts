@@ -15,7 +15,7 @@ const keysPressed: any = {
   a: false,
   s: false,
   d: false,
-  shift: false
+  Shift: false
 };
 const errors: any = {
   control: false,
@@ -39,7 +39,7 @@ let gameSize = {
 };
 
 if (process.argv.length < 4) {
-  console.log('Invalid number of arguments, please pass width and height of game window as program arguments in format \'width=<number> height=<number>\'');
+  console.error('Invalid number of arguments, please pass width and height of game window as program arguments in format \'width=<number> height=<number>\'');
   process.exit(1);
 }
 
@@ -49,7 +49,7 @@ try {
     height: parseInt(process.argv[3].split('=')[1])
   };
 } catch (error) {
-  console.log('Failed to parse command line arguments, please make sure arguments are in format \'width=<number> height=<number>\'');
+  console.error('Failed to parse command line arguments, please make sure arguments are in format \'width=<number> height=<number>\'');
   process.exit(2);
 }
 
@@ -84,6 +84,7 @@ async function createPageAndPrepareGame(browser: Browser, focusOnCurrentPage: bo
     }
   } catch (error) {
     errors.pageCreation = true;
+    console.warn('[FRAMEGRABBER]: ' + error);
   }
 }
 
@@ -107,6 +108,7 @@ async function getGameInfo(page: Page): Promise<GameState> {
     });
   } catch (error) {
     errors.gameState = true;
+    console.warn('[FRAMEGRABBER]: ' + error);
   }
   return gameState;
 }
@@ -114,6 +116,9 @@ async function getGameInfo(page: Page): Promise<GameState> {
 async function gameControlIteration(inputLine: string) {
   await performGameControl(inputLine);
   if (inputLine === 'NEXTGAME') {
+    for (const key in keysPressed) {
+      keysPressed[key] = false;
+    }
     console.log('FRAMEGRABBER:READY');
     return;
   }
@@ -140,24 +145,24 @@ async function switchToNextGame() {
 async function performGameControl(inputLine: string) {
   if (inputLine === 'NEXTGAME') {
     await switchToNextGame();
-  } else {
+  } else if (inputLine != '') {
     const keys: Array<string> = inputLine.split('|');
-    await keys.forEach(async key => {
-      try {
-        if (key === 'p' || key === 'ctrl') {
-          await currentPage.keyboard.press(key);
-          return;
-        }
-        if (keysPressed[key]) {
-          await currentPage.keyboard.up(key);
-        } else {
-          await currentPage.keyboard.down(key);
-        }
-        keysPressed[key] = !keysPressed[key];
-      } catch (error) {
-        errors.control = true;
+    if (keys.includes('p')) {
+      await currentPage.keyboard.press('p');
+      return;
+    }
+    if (keys.includes('ctrl')) {
+      await currentPage.keyboard.press('Ctrl');
+    }
+    for (const key in keysPressed) {
+      if (keysPressed[key] === true && keys.includes(key) === false) {
+        await currentPage.keyboard.up(key);
+        keysPressed[key] = false;
+      } else if (keysPressed[key] === false && keys.includes(key) === true) {
+        await currentPage.keyboard.down(key);
+        keysPressed[key] = true;
       }
-    });
+    }
   }
 }
 

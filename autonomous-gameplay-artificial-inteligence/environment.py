@@ -18,7 +18,7 @@ class Environment:
     self.gameReady: bool = False
     self.visualize: bool = visualize
     self.lastIterationTime: int = 0
-    self.actions = ['w', 'a', 'd', 'w|a', 'w|d', 'w|a|shift', 'w|d|shift', 'w|shift', 'd|shift', 'a|shift']
+    self.actions = ['w', 'a', 'd', 'w|a', 'w|d', 'w|a|Shift', 'w|d|Shift', 'w|Shift', 'd|Shift', 'a|Shift']
     self.buttonsPressed = {
       "w": False,
       "a": False,

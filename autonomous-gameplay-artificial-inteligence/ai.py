@@ -75,7 +75,7 @@ game_time_limit = 400
 # Initial weighted random choice probability
 # Environment.py: self.actions = ['w', 'a', 'd', 'w|a', 'w|d', 'w|a|shift', 'w|d|shift', 'w|shift', 'd|shift', 'a|shift']
 # Order and quantity must match actions for environemnt
-weighted_probability = [0.075, 0.025, 0.3, 0.025, 0.075, 0.025, 0.075, 0.075, 0.3, 0.025]
+weighted_probability = [0.075, 0.025, 0.25, 0.025, 0.125, 0.025, 0.125, 0.075, 0.25, 0.025]
 
 # Backup settings
 save_weights_episode_interval = 10
