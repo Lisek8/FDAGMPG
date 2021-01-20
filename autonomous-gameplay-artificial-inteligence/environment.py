@@ -27,6 +27,8 @@ class Environment:
     }
     self.gameWidth = gameWidth
     self.gameHeight = gameHeight
+    self.stepGameInfo = None
+    self.previousState = None
 
   def open(self):
     self.process = Popen("node ../frame-grabber-and-input/dist/main.js width={} height={}".format(self.gameWidth, self.gameHeight), stdin=PIPE, stdout=PIPE)
@@ -59,7 +61,8 @@ class Environment:
     assert not self.nextGame, "Cannot perform a step in game that is done, use reset() to prepare next game"
 
     frameStackArray = np.empty([int(self.gameHeight / self.downsampleFactor), int(self.gameWidth / self.downsampleFactor), self.frameStack])
-    stepGameInfo = None
+    self.previousState = self.stepGameInfo
+    self.stepGameInfo = None
     for i in range(0, self.frameStack):
       iterationStart: float = time.time()
       # Pass input to frame grabber
@@ -87,13 +90,15 @@ class Environment:
           cv2.imshow('Game preview', processedImage)
           cv2.waitKey(1)
         frameStackArray[:,:,i] = gameInfoJson['image']
-        stepGameInfo = gameInfoJson
+        self.stepGameInfo = gameInfoJson
       
       iterationEnd: float = time.time()
       self.lastIterationTime = (iterationEnd * 1000) - (iterationStart * 1000)
       # print(self.lastIterationTime)
-    stepGameInfo['image'] = frameStackArray
-    return (self.nextGame, stepGameInfo)
+    self.stepGameInfo['image'] = frameStackArray
+    if (self.nextGame == True):
+      self.stepGameInfo = self.previousState
+    return (self.nextGame, self.stepGameInfo)
 
   def close(self):
     self.process.kill()
