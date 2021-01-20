@@ -84,7 +84,7 @@ async function createPageAndPrepareGame(browser: Browser, focusOnCurrentPage: bo
     }
   } catch (error) {
     errors.pageCreation = true;
-    console.warn('[FRAMEGRABBER]: ' + error);
+    console.error('[FRAMEGRABBER]: ' + error);
   }
 }
 
@@ -108,7 +108,7 @@ async function getGameInfo(page: Page): Promise<GameState> {
     });
   } catch (error) {
     errors.gameState = true;
-    console.warn('[FRAMEGRABBER]: ' + error);
+    console.error('[FRAMEGRABBER]: ' + error);
   }
   return gameState;
 }
