@@ -25,7 +25,7 @@ else:
 discountFactor = 0.99  # Discount factor for past rewards
 epsilon = 1.0  # Epsilon greedy parameter
 epsilon_min = 0.1  # Minimum epsilon greedy parameter
-epsilon_max = 1.0  # Maximum epsilon greedy parameter
+epsilon_max = 0.8  # Maximum epsilon greedy parameter
 epsilon_interval = (
     epsilon_max - epsilon_min
 )  # Rate at which to reduce chance of random action being taken
@@ -46,7 +46,7 @@ running_reward = 0
 episode_count = 0
 frame_count = 0
 # Number of frames to take random action and observe output
-epsilon_random_frames = 50000
+epsilon_random_frames = 10000
 # Number of frames for exploration
 epsilon_greedy_frames = 1000000.0
 # Maximum replay length
@@ -75,7 +75,7 @@ game_time_limit = 400
 # Initial weighted random choice probability
 # Environment.py: self.actions = ['w', 'a', 'd', 'w|a', 'w|d', 'w|a|shift', 'w|d|shift', 'w|shift', 'd|shift', 'a|shift']
 # Order and quantity must match actions for environemnt
-weighted_probability = [0.075, 0.025, 0.25, 0.025, 0.125, 0.025, 0.125, 0.075, 0.25, 0.025]
+weighted_probability = [0.125, 0.0625, 0.125, 0.0625, 0.125, 0.0625, 0.125, 0.125, 0.125, 0.0625]
 
 # Backup settings
 save_weights_episode_interval = 10
@@ -138,11 +138,12 @@ while True:  # Run until solved
     game_time = game_time_limit
     while True:
         frame_count += 1
-
-        # Use epsilon-greedy for exploration
-        if frame_count < epsilon_random_frames or epsilon > np.random.rand(1)[0]:
-            # Take random action
+        if frame_count < epsilon_random_frames:
             action = np.random.choice(num_actions, p=weighted_probability)
+        # Use epsilon-greedy for exploration
+        elif frame_count < epsilon_random_frames or epsilon > np.random.rand(1)[0]:
+            # Take random action
+            action = np.random.choice(num_actions)
         else:
             # Predict action Q-values
             # From environment state
