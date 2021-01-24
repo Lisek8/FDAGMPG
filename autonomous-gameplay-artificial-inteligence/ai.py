@@ -70,8 +70,10 @@ loss_function = keras.losses.Huber()
 # Reward settings
 coin_weight = 200
 penalty_per_time_unit = 0
+one_up_weight = 1000
 # Starting time value for game DO NOT MODIFY
 game_time_limit = 400
+max_lives = 3
 # Initial weighted random choice probability
 # Environment.py: self.actions = ['w', 'a', 'd', 'w|a', 'w|d', 'w|a|shift', 'w|d|shift', 'w|shift', 'd|shift', 'a|shift']
 # Order and quantity must match actions for environemnt
@@ -135,6 +137,7 @@ while True:  # Run until solved
     state = env.reset()
     episode_reward = 0
     coins = 0
+    one_ups_collected = 0
     game_time = game_time_limit
     while True:
         frame_count += 1
@@ -166,11 +169,14 @@ while True:  # Run until solved
         state_history.append(state)
         state_next_history.append(state_next)
         done_history.append(done)
-        rewards_history.append((current_state['score'] - episode_reward) + ((current_state['coins'] - coins) * coin_weight) - ((game_time - current_state['time']) * penalty_per_time_unit))
+        rewards_history.append((current_state['score'] - episode_reward) + ((current_state['coins'] - coins) * coin_weight) - ((game_time - current_state['time']) * penalty_per_time_unit) + (np.max([current_state['lives'] - max_lives, 0]) * one_up_weight))
         state = state_next
         coins = current_state['coins']
+        if (current_state['lives'] > max_lives):
+            max_lives = current_state['lives']
+            one_ups_collected += 1
 
-        episode_reward = current_state['score'] + (current_state['coins'] * coin_weight) - ((game_time_limit - current_state['time']) * penalty_per_time_unit)
+        episode_reward = current_state['score'] + (current_state['coins'] * coin_weight) - ((game_time_limit - current_state['time']) * penalty_per_time_unit) + (one_ups_collected * one_up_weight)
 
         # Update every 4th action and once batch size is over 32
         if frame_count % update_after_actions == 0 and len(done_history) > batch_size:

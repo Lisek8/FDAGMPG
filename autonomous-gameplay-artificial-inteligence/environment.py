@@ -29,6 +29,7 @@ class Environment:
     self.gameHeight = gameHeight
     self.stepGameInfo = None
     self.previousState = None
+    self.maxLives = 3
 
   def open(self):
     self.process = Popen("node ../frame-grabber-and-input/dist/main.js width={} height={}".format(self.gameWidth, self.gameHeight), stdin=PIPE, stdout=PIPE)
@@ -52,6 +53,7 @@ class Environment:
     self.nextGame = False
     _, gameInfo = self.step('')
     self.nextGame = False
+    self.maxLives = 3
     self.__frames = np.empty([int(self.gameHeight / self.downsampleFactor), int(self.gameWidth / self.downsampleFactor), self.frameStack])
     self.__frames[:,:] = np.array(gameInfo['image'])
     return self.__frames
@@ -79,7 +81,9 @@ class Environment:
         # Update game time if it changed
         if (self.gameTime != gameInfoJson['time']):
           self.gameTime = gameInfoJson['time']
-        if (gameInfoJson['world'] != '1-1' or gameInfoJson['lives'] != 3):
+        if (gameInfoJson['lives'] > self.maxLives):
+          self.maxLives = gameInfoJson['lives']
+        if (gameInfoJson['world'] != '1-1' or gameInfoJson['lives'] != self.maxLives):
           self.nextGame = True
         # Process game image
         gameImage: bytes = base64.b64decode((gameInfoJson['image']))
